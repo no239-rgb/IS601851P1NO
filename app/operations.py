@@ -74,6 +74,33 @@ class Operation(ABC):
         """
         return self.__class__.__name__
 
+class NonZeroDivisorMixin:
+    """
+    Mixin to add zero-divisor validation to any Operation class.
+    """
+    def validate_operands(self, a: Decimal, b: Decimal) -> None:
+        """
+        Validate operands, checking for division by zero.
+
+        Overrides the base class method to ensure that the divisor is not zero.
+
+        Args:
+            a (Decimal): Dividend.
+            b (Decimal): Divisor.
+
+        Raises:
+            ValidationError: If the divisor is zero.
+        """
+        super().validate_operands(a, b)
+        """
+        super() gives a child class direct access to methods and attributes defined in its parent class
+        super().method_name() allows you to reuse or extend parent behavior
+        super().validate_operands(a, b) - does nothing since parent method does nothing.
+        Defensive coding for if parent method is altered to do general validation checks. 
+        """
+        if b == 0:
+            raise ValidationError("Division by zero is not allowed")
+
 class Addition (Operation):
     """
     Addition operation implementation
@@ -137,36 +164,13 @@ class Multiplication (Operation):
         self.validate_operands(a,b)
         return a * b
 
-class Division (Operation):
+class Division (NonZeroDivisorMixin, Operation):
     """
     Division operation implementation.
 
     Divides one number by another.
     """
-
-    def validate_operands(self, a: Decimal, b: Decimal) -> None:
-        """
-        Validate operands, checking for division by zero.
-
-        Overrides the base class method to ensure that the divisor is not zero.
-
-        Args:
-            a (Decimal): Dividend.
-            b (Decimal): Divisor.
-
-        Raises:
-            ValidationError: If the divisor is zero.
-        """
-        super().validate_operands(a, b)
-        """
-        super() gives a child class direct access to methods and attributes defined in its parent class
-        super().method_name() allows you to reuse or extend parent behavior
-        super().validate_operands(a, b) - does nothing since parent method does nothing.
-        Defensive coding for if parent method is altered to do general validation checks. 
-        """
-        if b == 0:
-            raise ValidationError("Division by zero is not allowed")
-        
+           
     def execute(self, a: Decimal, b: Decimal) -> Decimal:
         """
         Divide one number by another.
@@ -265,6 +269,90 @@ class Root(Operation):
         self.validate_operands(a, b)
         return Decimal(pow(float(a), 1 / float(b)))
 
+class Modulus (NonZeroDivisorMixin, Operation):
+    """
+    Modulus operation implementation.
+
+    Calculates the remainder of division between two numbers.
+    """
+          
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        """
+        Divide one number by another and provide remainder.
+        
+        Args:
+            a (Decimal): First operand.
+            b (Decimal): Second operand.
+
+        Returns:
+        Decimal: The modulus result of one number divided by the other.        
+        """
+        self.validate_operands(a,b)
+        return a % b
+
+class IntegerDivision (NonZeroDivisorMixin, Operation):
+    """
+    Integer division operation implementation.
+
+    Calculates the integer quotient of division between two numbers.
+    """
+        
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        """
+        Divide one number by another and provide integer quotient.
+        
+        Args:
+            a (Decimal): First operand.
+            b (Decimal): Second operand.
+
+        Returns:
+        Decimal: The integer quotient of one number divided by the other.        
+        """
+        self.validate_operands(a,b)
+        return a // b
+
+class AbsoluteDifference (Operation):
+    """
+    Absolute difference operation implementation.
+
+    Calculates the absolute difference between two numbers.
+    """
+
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        """
+        Calculate the absolute difference between two numbers.
+
+        Args:
+            a (Decimal): First operand.
+            b (Decimal): Second operand.
+
+        Returns:
+        Decimal: Absolute difference of the two operands.        
+        """
+        self.validate_operands(a,b)
+        return abs(a - b)
+
+class PercentageCalculation (NonZeroDivisorMixin, Operation):
+    """
+    Percentage calculation operation implementation.
+
+    Calculates the percentage of one number relative to another.
+    """
+          
+    def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        """
+        Calculate the percentage of one number relative to another.
+
+        Args:
+            a (Decimal): First operand.
+            b (Decimal): Second operand.
+
+        Returns:
+        Decimal: Result of one number divided by the other.        
+        """
+        self.validate_operands(a,b)
+        return (a / b) * 100
+
 class OperationFactory:
     """
     Factory class for creating operation instances.
@@ -281,7 +369,11 @@ class OperationFactory:
         'multiply': Multiplication,
         'divide': Division,
         'power': Power,
-        'root': Root
+        'root': Root,
+        'modulus': Modulus,
+        'integer_division': IntegerDivision,
+        'absolute_difference': AbsoluteDifference,
+        'percentage': PercentageCalculation
     }
 
     @classmethod
