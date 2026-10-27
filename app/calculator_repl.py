@@ -29,7 +29,7 @@ def calculator_repl():
                 if command == 'help':
                     # Display available commands
                     print("\nAvailable commands:")
-                    print("  add, subtract, multiply, divide, power, root - Perform calculations")
+                    print("  add, subtract, multiply, divide, power, root, modulus, integer_division, absolute_difference, percentage - Perform calculations")
                     print("  exit - Exit the calculator")
                     continue
 
@@ -38,7 +38,7 @@ def calculator_repl():
                     print("Goodbye!")
                     break
 
-                if command in ['add', 'subtract', 'multiply', 'divide', 'power', 'root']:
+                if command in ['add', 'subtract', 'multiply', 'divide', 'power', 'root','modulus', 'integer_division', 'absolute_difference', 'percentage']:
                     # Perform the specified arithmetic operation
                     try:
                         print("\nEnter numbers (or 'cancel' to abort):")
