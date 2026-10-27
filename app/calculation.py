@@ -15,19 +15,13 @@ from app.operations import OperationFactory
 class Calculation:
     """
     Value Object representing a single calculation.
-
-    Encapsulates calculation details (operation, operands, result, timestamp)
-    and handles serialization. Delegates mathematical execution entirely to 
-    OperationFactory to maintain a single source of truth.
     """
 
-    # Required fields
-    operation: str          # Name of the operation (e.g., "Addition", "add", "PercentageCalculation")
-    operand1: Decimal       # First operand
-    operand2: Decimal       # Second operand
+    operation: str          
+    operand1: Decimal       
+    operand2: Decimal       
 
-    # Fields with default values
-    result: Decimal = field(init=False)  # Computed post-initialization
+    result: Decimal = field(init=False)  
     timestamp: datetime.datetime = field(default_factory=datetime.datetime.now)
 
     def __post_init__(self):
@@ -35,24 +29,18 @@ class Calculation:
         self.result = self.calculate()
 
     def calculate(self) -> Decimal:
-        """
-        Execute calculation by delegating to OperationFactory.
-
-        Returns:
-            Decimal: The result of the calculation.
-
-        Raises:
-            OperationError: If the operation is unknown or execution fails.
-        """
-        # Map class names/display names to factory lookup keys
+        """Execute calculation by delegating to OperationFactory."""
         aliases = {
             "addition": "add",
             "subtraction": "subtract",
             "multiplication": "multiply",
             "division": "divide",
             "integerdivision": "integer_division",
+            "int_divide": "integer_division",
             "absolutedifference": "absolute_difference",
+            "abs_diff": "absolute_difference",
             "percentagecalculation": "percentage",
+            "percent": "percentage",
         }
         op_key = self.operation.lower().replace(" ", "_")
         op_key = aliases.get(op_key, op_key)
@@ -83,9 +71,7 @@ class Calculation:
                 operand2=Decimal(data['operand2'])
             )
             calc.timestamp = datetime.datetime.fromisoformat(data['timestamp'])            
-
             return calc
-
         except (KeyError, InvalidOperation, ValueError) as e:
             raise OperationError(f"Invalid calculation data: {str(e)}")
 
