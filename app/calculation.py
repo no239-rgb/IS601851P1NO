@@ -22,7 +22,7 @@ class Calculation:
     """
 
     # Required fields
-    operation: str          # Name of the operation (e.g., "Addition", "add", "Power")
+    operation: str          # Name of the operation (e.g., "Addition", "add", "PercentageCalculation")
     operand1: Decimal       # First operand
     operand2: Decimal       # Second operand
 
@@ -49,9 +49,12 @@ class Calculation:
             "addition": "add",
             "subtraction": "subtract",
             "multiplication": "multiply",
-            "division": "divide"
+            "division": "divide",
+            "integerdivision": "integer_division",
+            "absolutedifference": "absolute_difference",
+            "percentagecalculation": "percentage",
         }
-        op_key = self.operation.lower()
+        op_key = self.operation.lower().replace(" ", "_")
         op_key = aliases.get(op_key, op_key)
 
         try:
@@ -79,7 +82,7 @@ class Calculation:
                 operand1=Decimal(data['operand1']),
                 operand2=Decimal(data['operand2'])
             )
-            calc.timestamp = datetime.datetime.fromisoformat(data['timestamp'])           
+            calc.timestamp = datetime.datetime.fromisoformat(data['timestamp'])            
 
             return calc
 
