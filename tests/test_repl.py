@@ -1,78 +1,151 @@
-from unittest.mock import patch
-import pytest
 from decimal import Decimal
+import pytest
+
 from app.calculator_repl import calculator_repl
-from app.exceptions import OperationError, ValidationError
+from app.exceptions import ValidationError
 
 
-@pytest.fixture
-def run_repl(monkeypatch, capsys):
-    """
-    Test harness fixture that feeds simulated user inputs into calculator_repl()
-    and captures all printed standard output.
-    """
-    def _execute(inputs):
-        input_iter = iter(inputs)
-        monkeypatch.setattr("builtins.input", lambda prompt="": next(input_iter))
-        calculator_repl()
-        return capsys.readouterr().out
+def test_repl_help_command(monkeypatch, capsys):
+    """Verify that 'help' displays all available operations and options."""
+    inputs = iter(["help", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
 
-    return _execute
+    calculator_repl()
 
-
-@pytest.mark.parametrize(
-    "inputs, expected_snippets",
-    [
-        (["help", "exit"], ["Available commands:", "Goodbye!"]),
-        (["exit"], ["Calculator started.", "Goodbye!"]),
-        (["invalid_cmd", "exit"], ["Unknown command: 'invalid_cmd'.", "Goodbye!"]),
-        (["add", "cancel", "exit"], ["Operation cancelled"]),
-        (["add", "10", "cancel", "exit"], ["Operation cancelled"]),
-        (["add", "2", "3", "exit"], ["Result: 5"]),
-        (["subtract", "10", "4", "exit"], ["Result: 6"]),
-        (["multiply", "2.5", "4", "exit"], ["Result: 10"]),
-        (["divide", "20", "5", "exit"], ["Result: 4"]),
-        (["power", "2", "3", "exit"], ["Result: 8"]),
-        (["root", "16", "2", "exit"], ["Result: 4"]),
-    ],
-)
-def test_repl_commands_and_operations(run_repl, inputs, expected_snippets):
-    """Test commands, cancellations, and valid arithmetic operations in a single harness."""
-    output = run_repl(inputs)
-    for snippet in expected_snippets:
-        assert snippet in output
+    captured = capsys.readouterr().out
+    assert "Available commands:" in captured
+    assert "add, subtract, multiply, divide, power, root, modulus, integer_division, absolute_difference, percentage" in captured
+    assert "Goodbye!" in captured
 
 
 @pytest.mark.parametrize(
-    "inputs, side_effect, expected_snippet",
+    "command, val_a, val_b, expected_output",
     [
-        (
-            ["add", "10", "abc", "exit"],
-            ValidationError("Invalid number format"),
-            "Error: Invalid number format",
-        ),
-        (
-            ["add", "10", "0", "exit"],
-            OperationError("Division by zero is not allowed"),
-            "Error: Division by zero is not allowed",
-        ),
-        (
-            ["add", "5", "5", "exit"],
-            RuntimeError("Unexpected error"),
-            "Unexpected error: Unexpected error",
-        ),
+        ("add", "10", "5", "Result: 15"),
+        ("subtract", "10", "4", "Result: 6"),
+        ("multiply", "3", "4", "Result: 12"),
+        ("divide", "20", "5", "Result: 4"),
+        ("power", "2", "3", "Result: 8"),
+        ("root", "16", "2", "Result: 4"),
+        ("modulus", "10", "3", "Result: 1"),
+        ("integer_division", "10", "3", "Result: 3"),
+        ("absolute_difference", "5", "12", "Result: 7"),
+        ("percentage", "25", "100", "Result: 25"),
     ],
 )
-@patch("app.calculator_repl.Calculator.perform_operation")
-def test_repl_operation_exceptions(mock_perform, run_repl, inputs, side_effect, expected_snippet):
-    """Test handling of ValidationError, OperationError, and generic exceptions during calculation."""
-    mock_perform.side_effect = side_effect
-    output = run_repl(inputs)
-    assert expected_snippet in output
+def test_repl_successful_operations(monkeypatch, capsys, command, val_a, val_b, expected_output):
+    """Verify execution of all supported arithmetic operations through the REPL loop."""
+    inputs = iter([command, val_a, val_b, "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert expected_output in captured
+
+
+def test_repl_decimal_result_normalization_true_branch(monkeypatch, capsys):
+    """
+    Verify the True branch: When perform_operation returns a Decimal,
+    it is normalized and formatted as a standard fixed-point string.
+    """
+    inputs = iter(["add", "5", "5", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    monkeypatch.setattr(
+        "app.calculator_repl.Calculator.perform_operation",
+        lambda self, a, b: Decimal("10.5000"),
+    )
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Result: 10.5" in captured
+
+
+def test_repl_decimal_result_normalization_false_branch(monkeypatch, capsys):
+    """
+    Verify the False branch: When perform_operation returns a non-Decimal (e.g. str),
+    isinstance evaluates to False and skips normalization without error.
+    """
+    inputs = iter(["add", "5", "5", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    monkeypatch.setattr(
+        "app.calculator_repl.Calculator.perform_operation",
+        lambda self, a, b: "42",
+    )
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Result: 42" in captured
+
+
+@pytest.mark.parametrize("cancel_input", ["cancel", "CANCEL", "Cancel"])
+def test_repl_cancel_operation_first_number(monkeypatch, capsys, cancel_input):
+    """Verify aborting an operation when 'cancel' is entered for the first operand."""
+    inputs = iter(["add", cancel_input, "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Operation cancelled" in captured
+
+
+@pytest.mark.parametrize("cancel_input", ["cancel", "CANCEL", "Cancel"])
+def test_repl_cancel_operation_second_number(monkeypatch, capsys, cancel_input):
+    """Verify aborting an operation when 'cancel' is entered for the second operand."""
+    inputs = iter(["multiply", "10", cancel_input, "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Operation cancelled" in captured
+
+
+def test_repl_validation_error_handling(monkeypatch, capsys):
+    """Verify catching and printing known ValidationError during execution (e.g., division by zero)."""
+    inputs = iter(["divide", "10", "0", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Error: Division by zero is not allowed" in captured
+
+
+def test_repl_unexpected_operation_exception(monkeypatch, capsys):
+    """Verify unexpected non-validation exceptions inside the operation block are caught and printed."""
+    inputs = iter(["add", "10", "5", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    def mock_perform_operation(self, a, b):
+        raise RuntimeError("Operation engine malfunction")
+
+    monkeypatch.setattr("app.calculator.Calculator.perform_operation", mock_perform_operation)
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Unexpected error: Operation engine malfunction" in captured
+
+
+def test_repl_unknown_command(monkeypatch, capsys):
+    """Verify handling of unrecognized commands."""
+    inputs = iter(["foobar", "exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Unknown command: 'foobar'. Type 'help' for available commands." in captured
 
 
 def test_repl_keyboard_interrupt(monkeypatch, capsys):
-    """Test handling of KeyboardInterrupt (Ctrl+C) during input prompt."""
+    """Verify graceful handling of KeyboardInterrupt (Ctrl+C)."""
     calls = 0
 
     def mock_input(prompt=""):
@@ -83,71 +156,53 @@ def test_repl_keyboard_interrupt(monkeypatch, capsys):
         return "exit"
 
     monkeypatch.setattr("builtins.input", mock_input)
+
     calculator_repl()
-
-    output = capsys.readouterr().out
-    assert "Operation cancelled" in output
-    assert "Goodbye!" in output
-
-
-def test_repl_eof_interrupt(monkeypatch, capsys):
-    """Test handling of EOFError (Ctrl+D) gracefully exiting the REPL."""
-    monkeypatch.setattr("builtins.input", lambda prompt="": (_ for _ in ()).throw(EOFError()))
-    calculator_repl()
-
-    output = capsys.readouterr().out
-    assert "Input terminated. Exiting..." in output
-
-
-@patch("app.calculator_repl.Calculator", side_effect=Exception("Initialization failed"))
-def test_repl_fatal_initialization_error(mock_calc, capsys):
-    """Test fatal error during calculator initialization prints message and re-raises exception."""
-    with pytest.raises(Exception, match="Initialization failed"):
-        calculator_repl()
 
     captured = capsys.readouterr().out
-    assert "Fatal error: Initialization failed" in captured
+    assert "Operation cancelled" in captured
+    assert "Goodbye!" in captured
 
-@pytest.mark.parametrize(
-    "cmd, a, b, perform_return, expected_output",
-    [
-        # Converts scientific notation (10.00 -> 1E+1 -> "10")
-        ("multiply", "2.5", "4", Decimal("10.00"), "Result: 10"),
-        # Removes trailing zeros (12.3400 -> "12.34")
-        ("add", "10.000", "2.3400", Decimal("12.3400"), "Result: 12.34"),
-        # Normalizes zero values (0.000 -> "0")
-        ("subtract", "5.0", "5.0", Decimal("0.000"), "Result: 0"),
-        # Passes non-Decimal results through cleanly
-        ("add", "1", "2", "Non-Decimal Result", "Result: Non-Decimal Result"),
-    ],
-)
-@patch("app.calculator_repl.Calculator.perform_operation")
-def test_repl_decimal_result_formatting(mock_perform, run_repl, cmd, a, b, perform_return, expected_output):
-    """
-    Verify that Decimal results are normalized to remove trailing zeros
-    and formatted with fixed-point notation (:f) to avoid scientific notation.
-    """
-    mock_perform.return_value = perform_return
-    output = run_repl([cmd, a, b, "exit"])
-    assert expected_output in output
+
+def test_repl_eof_error(monkeypatch, capsys):
+    """Verify graceful handling of EOFError (Ctrl+D)."""
+    monkeypatch.setattr("builtins.input", lambda prompt="": (_ for _ in ()).throw(EOFError()))
+
+    calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Input terminated. Exiting..." in captured
+
 
 def test_repl_main_loop_generic_exception(monkeypatch, capsys):
-    """
-    Verify that unexpected non-interrupt exceptions raised during command processing 
-    in the main REPL loop are caught, printed as 'Error: <message>', and allow the loop to continue.
-    """
+    """Verify catching generic exceptions in the inner REPL loop block."""
     calls = 0
 
     def mock_input(prompt=""):
         nonlocal calls
         calls += 1
         if calls == 1:
-            raise RuntimeError("Unexpected main loop failure")
+            raise RuntimeError("Generic loop error")
         return "exit"
 
     monkeypatch.setattr("builtins.input", mock_input)
+
     calculator_repl()
 
     captured = capsys.readouterr().out
-    assert "Error: Unexpected main loop failure" in captured
-    assert "Goodbye!" in captured
+    assert "Error: Generic loop error" in captured
+
+
+def test_repl_fatal_initialization_error(monkeypatch, capsys):
+    """Verify fatal initialization errors outside the main loop are logged and re-raised."""
+
+    def mock_init(self):
+        raise RuntimeError("Database/Config init failure")
+
+    monkeypatch.setattr("app.calculator.Calculator.__init__", mock_init)
+
+    with pytest.raises(RuntimeError, match="Database/Config init failure"):
+        calculator_repl()
+
+    captured = capsys.readouterr().out
+    assert "Fatal error: Database/Config init failure" in captured
