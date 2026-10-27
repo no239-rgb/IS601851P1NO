@@ -60,7 +60,8 @@ def calculator_repl():
 
                         # Normalize the result if it's a Decimal
                         if isinstance(result, Decimal):
-                            result = result.normalize()
+                            # normalize() removes trailing zeros, :f forces standard string representation
+                            result = f"{result.normalize():f}"
 
                         print(f"\nResult: {result}")
                     except (ValidationError, OperationError) as e:
@@ -91,3 +92,4 @@ def calculator_repl():
         # Handle fatal errors during initialization
         print(f"Fatal error: {e}")
         raise
+
