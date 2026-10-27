@@ -1,95 +1,234 @@
 ################################################################
-#                      Calculator REPL                         #
+#                      Calculator REPL (Command Pattern)       #
 ################################################################
 
+from abc import ABC, abstractmethod
 from decimal import Decimal
+from typing import Any, List, Optional
+
 from app.calculator import Calculator
+from app.calculator_config import CalculatorConfig
 from app.exceptions import OperationError, ValidationError
+from app.history import AutoSaveObserver, LoggingObserver
+from app.logger import Logger
 from app.operations import OperationFactory
+
+
+class Command(ABC):
+    """Abstract base class for REPL commands (Command Pattern)."""
+
+    @abstractmethod
+    def execute(self) -> Any:
+        """Execute the command."""
+        pass  # pragma: no cover
+
+
+class CalculateCommand(Command):
+    """Command to execute arithmetic calculations."""
+
+    def __init__(self, calculator: Calculator, operation_name: str, a_str: str, b_str: str):
+        self.calculator = calculator
+        self.operation_name = operation_name
+        self.a_str = a_str
+        self.b_str = b_str
+
+    def execute(self) -> str:
+        operation = OperationFactory.create_operation(self.operation_name)
+        self.calculator.set_operation(operation)
+        result = self.calculator.perform_operation(self.a_str, self.b_str)
+
+        if isinstance(result, Decimal):
+            result = f"{result.normalize():f}"
+        return f"\nResult: {result}"
+
+
+class UndoCommand(Command):
+    """Command to revert last calculation."""
+
+    def __init__(self, calculator: Calculator):
+        self.calculator = calculator
+
+    def execute(self) -> str:
+        self.calculator.undo()
+        return "Undo successful."
+
+
+class RedoCommand(Command):
+    """Command to redo last undone calculation."""
+
+    def __init__(self, calculator: Calculator):
+        self.calculator = calculator
+
+    def execute(self) -> str:
+        self.calculator.redo()
+        return "Redo successful."
+
+
+class HistoryCommand(Command):
+    """Command to display calculation history."""
+
+    def __init__(self, calculator: Calculator):
+        self.calculator = calculator
+
+    def execute(self) -> str:
+        history = self.calculator.get_history()
+        if not history:
+            return "History is empty."
+        lines = ["\nCalculation History:"]
+        for idx, calc in enumerate(history, 1):
+            lines.append(f"  {idx}. {calc}")
+        return "\n".join(lines)
+
+
+class ClearCommand(Command):
+    """Command to clear calculation history."""
+
+    def __init__(self, calculator: Calculator):
+        self.calculator = calculator
+
+    def execute(self) -> str:
+        self.calculator.clear_history()
+        return "History cleared."
+
+
+class SaveCommand(Command):
+    """Command to save calculation history."""
+
+    def __init__(self, calculator: Calculator, file_path: Optional[str] = None):
+        self.calculator = calculator
+        self.file_path = file_path
+
+    def execute(self) -> str:
+        self.calculator.save_history(self.file_path)
+        return "History saved successfully."
+
+
+class LoadCommand(Command):
+    """Command to load calculation history."""
+
+    def __init__(self, calculator: Calculator, file_path: Optional[str] = None):
+        self.calculator = calculator
+        self.file_path = file_path
+
+    def execute(self) -> str:
+        self.calculator.load_history(self.file_path)
+        return "History loaded successfully."
+
+
+class HelpCommand(Command):
+    """Command to display available commands."""
+
+    def execute(self) -> str:
+        lines = [
+            "\nAvailable commands:",
+            "  add, subtract, multiply, divide, power, root, modulus, int_divide, percent, abs_diff - Perform calculations",
+            "  history - Display calculation history",
+            "  clear - Clear calculation history",
+            "  undo - Undo the last calculation",
+            "  redo - Redo the last undone calculation",
+            "  save - Save calculation history to file",
+            "  load - Load calculation history from file",
+            "  help - Display available commands",
+            "  exit - Exit the calculator",
+        ]
+        return "\n".join(lines)
+
+
+class CommandInvoker:
+    """Invoker class that executes command objects."""
+
+    def execute_command(self, command: Command) -> str:
+        return command.execute()
 
 
 def calculator_repl():
     """
-    Command-line interface for the calculator.
-
-    Implements a Read-Eval-Print Loop (REPL) that continuously prompts the user
-    for commands and processing  arithmetic operations.
+    Command-line interface for the calculator implementing the REPL pattern.
     """
     try:
-        # Initialize the Calculator instance
-        calc = Calculator()
+        config = CalculatorConfig()
+        Logger.configure(config)
 
+        calc = Calculator(config)
+        calc.add_observer(LoggingObserver())
+        calc.add_observer(AutoSaveObserver(calc))
+
+        invoker = CommandInvoker()
         print("Calculator started. Type 'help' for commands.")
+
+        calc_commands = [
+            'add', 'subtract', 'multiply', 'divide', 'power', 'root',
+            'modulus', 'int_divide', 'integer_division',
+            'percent', 'percentage', 'abs_diff', 'absolute_difference'
+        ]
 
         while True:
             try:
-                # Prompt the user for a command
-                command = input("\nEnter command: ").lower().strip()
+                command_str = input("\nEnter command: ").lower().strip()
 
-                if command == 'help':
-                    # Display available commands
-                    print("\nAvailable commands:")
-                    print("  add, subtract, multiply, divide, power, root, modulus, integer_division, absolute_difference, percentage - Perform calculations")
-                    print("  exit - Exit the calculator")
+                if command_str == 'help':
+                    print(invoker.execute_command(HelpCommand()))
                     continue
 
-                if command == 'exit':
-                    # Exit the REPL loop
+                if command_str == 'exit':
                     print("Goodbye!")
                     break
 
-                if command in ['add', 'subtract', 'multiply', 'divide', 'power', 'root','modulus', 'integer_division', 'absolute_difference', 'percentage']:
-                    # Perform the specified arithmetic operation
-                    try:
-                        print("\nEnter numbers (or 'cancel' to abort):")
-                        a = input("First number: ")
-                        if a.lower() == 'cancel':
-                            print("Operation cancelled")
-                            continue
-                        b = input("Second number: ")
-                        if b.lower() == 'cancel':
-                            print("Operation cancelled")
-                            continue
+                if command_str in calc_commands:
+                    print("\nEnter numbers (or 'cancel' to abort):")
+                    a_input = input("First number: ")
+                    if a_input.lower() == 'cancel':
+                        print("Operation cancelled")
+                        continue
+                    b_input = input("Second number: ")
+                    if b_input.lower() == 'cancel':
+                        print("Operation cancelled")
+                        continue
 
-                        # Create the appropriate operation instance using the Factory pattern
-                        operation = OperationFactory.create_operation(command)
-                        calc.set_operation(operation)
-
-                        # Perform the calculation
-                        result = calc.perform_operation(a, b)
-
-                        # Normalize the result if it's a Decimal
-                        if isinstance(result, Decimal):
-                            # normalize() removes trailing zeros, :f forces standard string representation
-                            result = f"{result.normalize():f}"
-
-                        print(f"\nResult: {result}")
-                    except (ValidationError, OperationError) as e:
-                        # Handle known exceptions related to validation or operation errors
-                        print(f"Error: {e}")
-                    except Exception as e:
-                        # Handle any unexpected exceptions
-                        print(f"Unexpected error: {e}")
+                    cmd = CalculateCommand(calc, command_str, a_input, b_input)
+                    print(invoker.execute_command(cmd))
                     continue
 
-                # Handle unknown commands
-                print(f"Unknown command: '{command}'. Type 'help' for available commands.")
+                if command_str == 'undo':
+                    print(invoker.execute_command(UndoCommand(calc)))
+                    continue
 
+                if command_str == 'redo':
+                    print(invoker.execute_command(RedoCommand(calc)))
+                    continue
+
+                if command_str == 'history':
+                    print(invoker.execute_command(HistoryCommand(calc)))
+                    continue
+
+                if command_str == 'clear':
+                    print(invoker.execute_command(ClearCommand(calc)))
+                    continue
+
+                if command_str == 'save':
+                    print(invoker.execute_command(SaveCommand(calc)))
+                    continue
+
+                if command_str == 'load':
+                    print(invoker.execute_command(LoadCommand(calc)))
+                    continue
+
+                print(f"Unknown command: '{command_str}'. Type 'help' for available commands.")
+
+            except (ValidationError, OperationError) as e:
+                print(f"Error: {e}")
             except KeyboardInterrupt:
-                # Handle Ctrl+C interruption gracefully
                 print("\nOperation cancelled")
                 continue
             except EOFError:
-                # Handle end-of-file (e.g., Ctrl+D) gracefully
                 print("\nInput terminated. Exiting...")
                 break
             except Exception as e:
-                # Handle any other unexpected exceptions
                 print(f"Error: {e}")
                 continue
 
     except Exception as e:
-        # Handle fatal errors during initialization
         print(f"Fatal error: {e}")
         raise
+
 
