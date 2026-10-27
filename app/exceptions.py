@@ -2,7 +2,7 @@
 #       Exception Classes               #
 #########################################
 
-class CalculationError(Exception):
+class CalculatorError(Exception):
     """
     Base exception class for calculator-related errors.
 
@@ -11,7 +11,7 @@ class CalculationError(Exception):
     """
     pass
 
-class ValidationError(CalculationError):
+class ValidationError(CalculatorError):
     """
     Raised upon input validation failure.
 
@@ -20,7 +20,7 @@ class ValidationError(CalculationError):
     """
     pass
 
-class OperationError(CalculationError):
+class OperationError(CalculatorError):
     """
     Raised when a calculation operation fails. 
 
@@ -29,7 +29,7 @@ class OperationError(CalculationError):
     """
     pass
 
-class ConfigurationError(CalculationError):
+class ConfigurationError(CalculatorError):
     """
     Raised when calculator configuration is invalid.
 
