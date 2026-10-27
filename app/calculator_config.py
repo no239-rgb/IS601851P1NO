@@ -69,13 +69,15 @@ class CalculatorConfig:
         ).resolve()
 
         # Calculation precision
-        self.precision = precision or int(
-            os.getenv('CALCULATOR_PRECISION', '10')
+        self.precision = (
+            precision if precision is not None 
+            else int(os.getenv('CALCULATOR_PRECISION', '10'))
         )
 
         # Maximum input value allowed
-        self.max_input_value = max_input_value or Decimal(
-            os.getenv('CALCULATOR_MAX_INPUT_VALUE', '1e999')
+        self.max_input_value = (
+            max_input_value if max_input_value is not None 
+            else Decimal(os.getenv('CALCULATOR_MAX_INPUT_VALUE', '1e999'))
         )
 
         # Default encoding for file operations
