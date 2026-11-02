@@ -75,3 +75,37 @@ def test_factory_registration_and_creation():
 
     with pytest.raises(TypeError, match="Operation class must inherit from Operation"):
         OperationFactory.register_operation("bad", object)
+
+def test_factory_registration_and_creation():
+    """Verify OperationFactory creation and subclass registration."""
+    op = OperationFactory.create_operation("add")
+    assert isinstance(op, Addition)
+
+    with pytest.raises(ValueError, match="Unknown operation"):
+        OperationFactory.create_operation("invalid")
+
+    class CustomOp(Addition):
+        pass
+
+    OperationFactory.register_operation("custom", CustomOp)
+    assert isinstance(OperationFactory.create_operation("custom"), CustomOp)
+
+    with pytest.raises(TypeError, match="Operation class must inherit from Operation"):
+        OperationFactory.register_operation("bad", object)
+
+def test_factory_get_available_operations():
+    """Verify that the factory correctly reports all registered operations."""
+    ops = OperationFactory.get_available_operations()
+    
+    # Assert standard operations are present
+    assert 'add' in ops
+    assert 'subtract' in ops
+    
+    # Register a new operation and verify it appears dynamically
+    class TestOp(Addition):
+        pass
+        
+    OperationFactory.register_operation("dynamic_test", TestOp)
+    updated_ops = OperationFactory.get_available_operations()
+    
+    assert "dynamic_test" in updated_ops
