@@ -5,7 +5,7 @@
 from dataclasses import dataclass, field
 import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.exceptions import OperationError, ValidationError
 from app.operations import OperationFactory
@@ -21,12 +21,16 @@ class Calculation:
     operand1: Decimal       
     operand2: Decimal       
 
-    result: Decimal = field(init=False)  
+    # Allow result to be injected directly when loading from history
+    result: Optional[Decimal] = None 
     timestamp: datetime.datetime = field(default_factory=datetime.datetime.now)
 
     def __post_init__(self):
-        """Automatically calculate the result after creation."""
-        self.result = self.calculate()
+        """Calculate the result if not already provided (prevents double execution)."""
+        if self.result is None:
+            self.result = self.calculate()
+        elif not isinstance(self.result, Decimal):
+            self.result = Decimal(str(self.result))
 
     def calculate(self) -> Decimal:
         """Execute calculation by delegating to OperationFactory."""
@@ -50,7 +54,7 @@ class Calculation:
             return op_instance.execute(self.operand1, self.operand2)
         except (ValidationError, ValueError, InvalidOperation, ArithmeticError) as e:
             raise OperationError(f"Calculation failed: {str(e)}")
-
+        
     def to_dict(self) -> Dict[str, Any]:
         """Convert calculation to dictionary for serialization."""
         return {
@@ -63,12 +67,13 @@ class Calculation:
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> 'Calculation':
-        """Reconstruct a Calculation instance from a dictionary."""
+        """Reconstruct a Calculation instance from a dictionary without recalculating."""
         try:
             calc = Calculation(
                 operation=data['operation'],
                 operand1=Decimal(data['operand1']),
-                operand2=Decimal(data['operand2'])
+                operand2=Decimal(data['operand2']),
+                result=Decimal(data['result'])  # Load the dead data
             )
             calc.timestamp = datetime.datetime.fromisoformat(data['timestamp'])            
             return calc
