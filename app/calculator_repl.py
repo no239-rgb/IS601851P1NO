@@ -119,9 +119,11 @@ class HelpCommand(Command):
     """Command to display available commands."""
 
     def execute(self) -> str:
+        # Dynamically fetch available operations to construct the help menu
+        operations = ", ".join(OperationFactory.get_available_operations())
         lines = [
             "\nAvailable commands:",
-            "  add, subtract, multiply, divide, power, root, modulus, int_divide, percent, abs_diff - Perform calculations",
+            f"  {operations} - Perform calculations",
             "  history - Display calculation history",
             "  clear - Clear calculation history",
             "  undo - Undo the last calculation",
@@ -156,11 +158,8 @@ def calculator_repl():
         invoker = CommandInvoker()
         print("Calculator started. Type 'help' for commands.")
 
-        calc_commands = [
-            'add', 'subtract', 'multiply', 'divide', 'power', 'root',
-            'modulus', 'int_divide', 'integer_division',
-            'percent', 'percentage', 'abs_diff', 'absolute_difference'
-        ]
+        # Dynamically fetch valid operations instead of hardcoding them
+        calc_commands = OperationFactory.get_available_operations()
 
         while True:
             try:
