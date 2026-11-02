@@ -175,6 +175,13 @@ class OperationFactory:
     }
 
     @classmethod
+    def get_available_operations(cls) -> list[str]:
+        """
+        Return a list of all registered operation names.
+        """
+        return list(cls._operations.keys())
+
+    @classmethod
     def register_operation(cls, name: str, operation_class: type) -> None:
         """
         Register a new operation type.
@@ -193,5 +200,4 @@ class OperationFactory:
         operation_class = cls._operations.get(operation_type.lower())
         if not operation_class:
             raise ValueError(f"Unknown operation: {operation_type}")
-        return operation_class()   
-    
+        return operation_class()
