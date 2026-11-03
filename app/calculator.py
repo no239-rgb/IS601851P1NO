@@ -168,13 +168,17 @@ class Calculator:
                 loaded_history.append(Calculation.from_dict(calc_dict))
 
             self.save_undo_snapshot()
-            self.history = loaded_history
+            
+            # Enforce the history boundary constraint before assignment
+            limit = self.config.max_history_size
+            if len(loaded_history) > limit:
+                self.history = loaded_history[-limit:]
+            else:
+                self.history = loaded_history
 
         except (ValidationError, OperationError):
             raise
         except Exception as e:
             raise OperationError(f"Failed to load history: {str(e)}")
-
-
         
-
+    
