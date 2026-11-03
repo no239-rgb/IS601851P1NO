@@ -204,8 +204,9 @@ def test_calculator_remove_observer_when_not_present():
     calc.remove_observer(mock_observer)
     assert len(calc.observers) == 0
 
+@patch('app.calculator.Path.exists')
 @patch('app.calculator.pd.read_csv')
-def test_calculator_load_history_respects_max_history_size(mock_read_csv):
+def test_calculator_load_history_respects_max_history_size(mock_read_csv, mock_exists):
     """Verify that loading a large CSV automatically trims to max_history_size."""
     # 1. Setup a config with a strictly small max_history_size
     config = CalculatorConfig(max_history_size=3)
