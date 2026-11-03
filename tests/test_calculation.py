@@ -146,3 +146,18 @@ def test_calculation_relies_on_factory_aliases():
         operand2=Decimal("15")
     )
     assert calc2.result == Decimal("10")
+
+def test_calculation_quantize_result_updates_domain_precision():
+    """Verify that Calculation result can be directly rounded to precision at the model level."""
+    calc = Calculation(
+        operation="divide",
+        operand1=Decimal("10"),
+        operand2=Decimal("3"),
+        result=Decimal("3.3333333333")
+    )
+
+    # If adding a helper method like quantize_result(precision) on Calculation:
+    rounded_result = calc.quantize_result(precision=2)
+
+    assert rounded_result == Decimal("3.33")
+    assert calc.result == Decimal("3.33")

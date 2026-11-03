@@ -5,7 +5,7 @@ import pandas as pd
 from app.calculator import Calculator
 from app.calculator_config import CalculatorConfig
 from app.exceptions import OperationError, ValidationError
-from app.operations import Addition
+from app.operations import Addition, Division
 
 
 def test_calculator_init_and_set_operation():
@@ -283,3 +283,30 @@ def test_calculator_redo_stack_cleared_on_history_clear():
 
     with pytest.raises(OperationError, match="No operations to redo"):
         calc.redo()
+
+from decimal import Decimal
+import pytest
+from app.calculator import Calculator
+from app.calculator_config import CalculatorConfig
+from app.operations import Division
+
+
+def test_calculator_perform_operation_stores_precision_rounded_result_in_history():
+    """Verify that domain history receives the precision-quantized Decimal result, not unrounded floats/decimals."""
+    # Setup config with 2-decimal precision (e.g., 10 / 3 = 3.3333... -> 3.33)
+    config = CalculatorConfig(precision=2)
+    calc = Calculator(config)
+    calc.set_operation(Division())
+
+    result = calc.perform_operation("10", "3")
+
+    # Domain state verification: History must store the precision-rounded result
+    history = calc.get_history()
+    assert len(history) == 1
+
+    stored_calc = history[0]
+    expected_result = Decimal("3.33")
+
+    # Assert both the returned execution result and saved history match the exact domain precision
+    assert result == expected_result
+    assert stored_calc.result == expected_result
