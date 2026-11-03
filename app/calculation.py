@@ -34,21 +34,10 @@ class Calculation:
 
     def calculate(self) -> Decimal:
         """Execute calculation by delegating to OperationFactory."""
-        aliases = {
-            "addition": "add",
-            "subtraction": "subtract",
-            "multiplication": "multiply",
-            "division": "divide",
-            "integerdivision": "integer_division",
-            "int_divide": "integer_division",
-            "absolutedifference": "absolute_difference",
-            "abs_diff": "absolute_difference",
-            "percentagecalculation": "percentage",
-            "percent": "percentage",
-        }
+        
+        # Normalize the string without intercepting aliases
         op_key = self.operation.lower().replace(" ", "_")
-        op_key = aliases.get(op_key, op_key)
-
+      
         try:
             op_instance = OperationFactory.create_operation(op_key)
             return op_instance.execute(self.operand1, self.operand2)

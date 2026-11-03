@@ -119,8 +119,8 @@ class HelpCommand(Command):
     """Command to display available commands."""
 
     def execute(self) -> str:
-        # Dynamically fetch available operations to construct the help menu
-        operations = ", ".join(OperationFactory.get_available_operations())
+        # Fetch only primary operations to prevent overcrowding the help menu
+        operations = ", ".join(OperationFactory.get_primary_operations())
         lines = [
             "\nAvailable commands:",
             f"  {operations} - Perform calculations",

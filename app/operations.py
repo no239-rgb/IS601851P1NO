@@ -160,17 +160,24 @@ class OperationFactory:
 
     _operations: Dict[str, type] = {
         'add': Addition,
+        'addition': Addition,
         'subtract': Subtraction,
+        'subtraction': Subtraction,
         'multiply': Multiplication,
+        'multiplication': Multiplication,
         'divide': Division,
+        'division': Division,
         'power': Power,
         'root': Root,
         'modulus': Modulus,
         'integer_division': IntegerDivision,
+        'integerdivision': IntegerDivision,
         'int_divide': IntegerDivision,
         'absolute_difference': AbsoluteDifference,
+        'absolutedifference': AbsoluteDifference,
         'abs_diff': AbsoluteDifference,
         'percentage': PercentageCalculation,
+        'percentagecalculation': PercentageCalculation,
         'percent': PercentageCalculation,
     }
 
@@ -201,3 +208,16 @@ class OperationFactory:
         if not operation_class:
             raise ValueError(f"Unknown operation: {operation_type}")
         return operation_class()
+
+    @classmethod
+    def get_primary_operations(cls) -> list[str]:
+        """
+        Return a list of only the primary operation names (ignoring aliases) for display.
+        """
+        primary_ops = []
+        seen_classes = set()
+        for name, op_class in cls._operations.items():
+            if op_class not in seen_classes:
+                primary_ops.append(name)
+                seen_classes.add(op_class)
+        return primary_ops
