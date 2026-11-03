@@ -88,12 +88,16 @@ class Calculator:
             validated_a = InputValidator.validate_number(a, self.config)
             validated_b = InputValidator.validate_number(b, self.config)
 
-            result = self.operation_strategy.execute(validated_a, validated_b)
+            raw_result = self.operation_strategy.execute(validated_a, validated_b)
             calc_obj = Calculation(
                 operation=str(self.operation_strategy),
                 operand1=validated_a,
-                operand2=validated_b
+                operand2=validated_b,
+                result=raw_result  # Inject to avoid re-calculation
             )
+
+            # BUG FIX: Quantize the result at the domain level before saving to history
+            result = calc_obj.quantize_result(self.config.precision)
 
             self.save_undo_snapshot()
             self.history.append(calc_obj)
