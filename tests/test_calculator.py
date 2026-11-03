@@ -249,3 +249,37 @@ def test_calculator_undo_stack_memory_leak_prevention():
     # Assert that the undo stack did not grow beyond the max_history_size limit
     assert len(calc._undo_stack) == 5
 
+def test_calculator_redo_stack_cleared_on_new_operation():
+    """Verify that performing a new calculation clears the redo stack to prevent timeline branching."""
+    calc = Calculator()
+    calc.set_operation(Addition())
+
+    # 1. Perform two initial calculations
+    calc.perform_operation("1", "1")  # Result: 2
+    calc.perform_operation("2", "2")  # Result: 4
+
+    # 2. Undo the last calculation (moves '2+2' to the redo stack)
+    calc.undo()
+    assert len(calc.get_history()) == 1
+
+    # 3. Perform a NEW calculation (must clear the redo stack)
+    calc.perform_operation("3", "3")  # Result: 6
+    assert len(calc.get_history()) == 2
+
+    # 4. Attempting to redo should now fail, as the old future no longer exists
+    with pytest.raises(OperationError, match="No operations to redo"):
+        calc.redo()
+
+def test_calculator_redo_stack_cleared_on_history_clear():
+    """Verify that clearing the calculator history also clears the redo stack."""
+    calc = Calculator()
+    calc.set_operation(Addition())
+
+    calc.perform_operation("1", "1")
+    calc.undo()
+    
+    # Clear the history (should wipe both history and redo stack)
+    calc.clear_history()
+
+    with pytest.raises(OperationError, match="No operations to redo"):
+        calc.redo()
