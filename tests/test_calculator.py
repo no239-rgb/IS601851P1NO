@@ -1,7 +1,7 @@
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 import pytest
-
+import pandas as pd
 from app.calculator import Calculator
 from app.calculator_config import CalculatorConfig
 from app.exceptions import OperationError, ValidationError
@@ -203,3 +203,31 @@ def test_calculator_remove_observer_when_not_present():
     # Calling remove_observer on an un-registered observer evaluates the condition to False and exits cleanly
     calc.remove_observer(mock_observer)
     assert len(calc.observers) == 0
+
+@patch('app.calculator.pd.read_csv')
+def test_calculator_load_history_respects_max_history_size(mock_read_csv):
+    """Verify that loading a large CSV automatically trims to max_history_size."""
+    # 1. Setup a config with a strictly small max_history_size
+    config = CalculatorConfig(max_history_size=3)
+    calc = Calculator(config)
+    
+    # 2. Mock a CSV payload that exceeds the limit (e.g., 5 records)
+    # The dictionary structure should match what your DataFrame expects
+    mock_df = pd.DataFrame([
+        {'operation': 'add', 'operand1': '1', 'operand2': '1', 'result': '2', 'timestamp': '2023-01-01T10:00:00'},
+        {'operation': 'add', 'operand1': '2', 'operand2': '2', 'result': '4', 'timestamp': '2023-01-01T10:01:00'},
+        {'operation': 'add', 'operand1': '3', 'operand2': '3', 'result': '6', 'timestamp': '2023-01-01T10:02:00'},
+        {'operation': 'add', 'operand1': '4', 'operand2': '4', 'result': '8', 'timestamp': '2023-01-01T10:03:00'},
+        {'operation': 'add', 'operand1': '5', 'operand2': '5', 'result': '10', 'timestamp': '2023-01-01T10:04:00'},
+    ])
+    mock_read_csv.return_value = mock_df
+
+    # 3. Execute load
+    calc.load_history()
+
+    # 4. Assert that the history only retained the latest 3 records
+    assert len(calc.history) == 3
+    
+    # 5. Assert it kept the tail (the most recent ones), meaning operand1 should be 3, 4, and 5
+    assert calc.history[0].operand1 == Decimal('3')
+    assert calc.history[-1].operand1 == Decimal('5')
