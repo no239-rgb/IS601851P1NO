@@ -59,9 +59,16 @@ class Calculator:
             observer.update(calculation)
 
     def save_undo_snapshot(self) -> None:
-        """Save a state snapshot to the undo stack and reset redo history."""
-        self._undo_stack.append(CalculatorMemento(history=self.history))
-        self._redo_stack.clear()
+        """Save a defensive copy of the current history to the undo stack."""
+        from app.calculator_memento import CalculatorMemento
+        
+        # Safely create and append the Memento object
+        self._undo_stack.append(CalculatorMemento(list(self.history)))
+        
+        # Enforce a maximum depth on the undo stack to prevent memory leaks
+        limit = self.config.max_history_size
+        if len(self._undo_stack) > limit:
+            self._undo_stack.pop(0)
 
     def perform_operation(
         self,
@@ -180,5 +187,6 @@ class Calculator:
             raise
         except Exception as e:
             raise OperationError(f"Failed to load history: {str(e)}")
-        
-    
+
+
+
