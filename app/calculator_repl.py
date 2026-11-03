@@ -215,6 +215,7 @@ def calculator_repl():
                 print(f"Unknown command: '{command_str}'. Type 'help' for available commands.")
 
             except (ValidationError, OperationError) as e:
+                Logger.error(f"Calculation error: {e}")
                 print(f"Error: {e}")
             except KeyboardInterrupt:
                 print("\nOperation cancelled")
@@ -223,10 +224,12 @@ def calculator_repl():
                 print("\nInput terminated. Exiting...")
                 break
             except Exception as e:
+                Logger.error(f"Unexpected REPL error: {e}")
                 print(f"Error: {e}")
                 continue
 
     except Exception as e:
+        Logger.error(f"Fatal REPL error: {e}")
         print(f"Fatal error: {e}")
         raise
 
