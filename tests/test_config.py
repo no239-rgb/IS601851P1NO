@@ -90,3 +90,43 @@ def test_calculator_config_validation_failures(invalid_kwargs, error_msg):
     """Verify initialization raises ConfigurationError for invalid settings immediately on creation."""
     with pytest.raises(ConfigurationError, match=error_msg):
         CalculatorConfig(**invalid_kwargs)
+
+@pytest.mark.parametrize(
+    "env_var, invalid_value, expected_error_match",
+    [
+        ("CALCULATOR_PRECISION", "abc", "CALCULATOR_PRECISION must be a valid integer"),
+        ("CALCULATOR_MAX_INPUT_VALUE", "not_a_number", "CALCULATOR_MAX_INPUT_VALUE must be a valid number"),
+        ("CALCULATOR_MAX_HISTORY_SIZE", "xyz", "CALCULATOR_MAX_HISTORY_SIZE must be a valid integer"),
+    ],
+)
+def test_calculator_config_invalid_env_types_raise_configuration_error(
+    monkeypatch, env_var, invalid_value, expected_error_match
+):
+    """Verify that invalid environment variable types are sanitized into ConfigurationError."""
+    # Mock the specific environment variable with an invalid string
+    monkeypatch.setenv(env_var, invalid_value)
+
+    with pytest.raises(ConfigurationError, match=expected_error_match):
+        CalculatorConfig()
+
+def test_calculator_config_invalid_boolean_env_fallback(monkeypatch):
+    """Verify that invalid boolean strings gracefully fallback or raise ConfigurationError."""
+    # Depending on implementation, you might want this to raise an error or default to False.
+    # If standardizing strict boundary validation:
+    monkeypatch.setenv("CALCULATOR_AUTO_SAVE", "not_a_bool_string")
+    
+    # If the fix enforces strict boolean parsing:
+    with pytest.raises(ConfigurationError, match="CALCULATOR_AUTO_SAVE must be a boolean"):
+        CalculatorConfig()
+
+@pytest.mark.parametrize("false_val", ["false", "0", "no", "f"])
+def test_calculator_config_auto_save_env_false_branch(monkeypatch, false_val):
+    """Verify that env CALCULATOR_AUTO_SAVE set to a false string evaluates self.auto_save to False."""
+    # Set the environment variable to a false string variant
+    monkeypatch.setenv("CALCULATOR_AUTO_SAVE", false_val)
+
+    # Instantiate without passing auto_save explicitly so it executes the 'else' branch
+    config = CalculatorConfig(auto_save=None)
+
+    # Assert that self.auto_save reached the target line and set self.auto_save to False
+    assert config.auto_save is False

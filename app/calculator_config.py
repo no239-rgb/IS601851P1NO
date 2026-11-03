@@ -3,7 +3,7 @@
 #############################################
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from numbers import Number
 from pathlib import Path
 import os
@@ -48,9 +48,6 @@ class CalculatorConfig:
     max_history_size: int
     auto_save: bool
 
-    # ==============================================================================
-# REPLACE CalculatorConfig.__init__ IN app/calculator_config.py:
-# ==============================================================================
     def __init__(
         self,
         base_dir: Optional[Path] = None,
@@ -69,22 +66,27 @@ class CalculatorConfig:
             os.getenv('CALCULATOR_BASE_DIR', str(project_root))
         ).resolve()
 
-        self.precision = (
-            precision if precision is not None 
-            else int(os.getenv('CALCULATOR_PRECISION', '10'))
-        )
+        try:
+            self.precision = (
+                precision if precision is not None 
+                else int(os.getenv('CALCULATOR_PRECISION', '10'))
+            )
+        except (ValueError, TypeError):
+            raise ConfigurationError("CALCULATOR_PRECISION must be a valid integer")
 
-        self.max_input_value = (
-            Decimal(str(max_input_value)) if max_input_value is not None 
-            else Decimal(os.getenv('CALCULATOR_MAX_INPUT_VALUE', '1e999'))
-        )
+        try:
+            self.max_input_value = (
+                Decimal(str(max_input_value)) if max_input_value is not None 
+                else Decimal(os.getenv('CALCULATOR_MAX_INPUT_VALUE', '1e999'))
+            )
+        except (ValueError, TypeError, InvalidOperation):
+            raise ConfigurationError("CALCULATOR_MAX_INPUT_VALUE must be a valid number")
 
         self.default_encoding = (
             default_encoding if default_encoding is not None
             else os.getenv('CALCULATOR_DEFAULT_ENCODING', 'utf-8')
         )
 
-        # Safely construct default log/history paths if base_dir is a Path instance
         is_path = isinstance(self.base_dir, Path)
         raw_log_dir = os.getenv('CALCULATOR_LOG_DIR', str(self.base_dir / "logs") if is_path else "logs")
         self.log_dir = log_dir if log_dir is not None else Path(raw_log_dir).resolve()
@@ -102,16 +104,24 @@ class CalculatorConfig:
             else os.getenv('CALCULATOR_LOG_FILE', 'app.log')
         )
 
-        self.max_history_size = (
-            max_history_size if max_history_size is not None 
-            else int(os.getenv('CALCULATOR_MAX_HISTORY_SIZE', '100'))
-        )
+        try:
+            self.max_history_size = (
+                max_history_size if max_history_size is not None 
+                else int(os.getenv('CALCULATOR_MAX_HISTORY_SIZE', '100'))
+            )
+        except (ValueError, TypeError):
+            raise ConfigurationError("CALCULATOR_MAX_HISTORY_SIZE must be a valid integer")
 
         if auto_save is not None:
             self.auto_save = auto_save
         else:
             env_auto = os.getenv('CALCULATOR_AUTO_SAVE', 'true').lower()
-            self.auto_save = env_auto in ('true', '1', 'yes', 't')
+            if env_auto in ('true', '1', 'yes', 't'):
+                self.auto_save = True
+            elif env_auto in ('false', '0', 'no', 'f'):
+                self.auto_save = False
+            else:
+                raise ConfigurationError("CALCULATOR_AUTO_SAVE must be a boolean value")
 
         self.validate()
 
