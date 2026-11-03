@@ -22,9 +22,8 @@ class Command(ABC):
         """Execute the command."""
         pass  # pragma: no cover
 
-
 class CalculateCommand(Command):
-    """Command to execute arithmetic calculations."""
+    """Command to execute arithmetic calculations with configured precision formatting."""
 
     def __init__(self, calculator: Calculator, operation_name: str, a_str: str, b_str: str):
         self.calculator = calculator
@@ -36,6 +35,12 @@ class CalculateCommand(Command):
         operation = OperationFactory.create_operation(self.operation_name)
         self.calculator.set_operation(operation)
         result = self.calculator.perform_operation(self.a_str, self.b_str)
+
+        if self.calculator.history:
+            latest_calc = self.calculator.history[-1]
+            raw_formatted = latest_calc.format_result(self.calculator.config.precision)
+            formatted_result = f"{Decimal(raw_formatted):f}"
+            return f"\nResult: {formatted_result}"
 
         if isinstance(result, Decimal):
             result = f"{result.normalize():f}"
