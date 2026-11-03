@@ -115,7 +115,7 @@ class Root(Operation):
 
     def execute(self, a: Decimal, b: Decimal) -> Decimal:
         self.validate_operands(a, b)
-        return Decimal(pow(float(a), 1 / float(b)))
+        return a ** (Decimal(1) / b)
 
 class Modulus(NonZeroDivisorMixin, Operation):
     """
