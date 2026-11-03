@@ -1,3 +1,6 @@
+# ==============================================================================
+# REPLACE ENTIRE CONTENT OF app/calculator_repl.py:
+# ==============================================================================
 ################################################################
 #                      Calculator REPL (Command Pattern)       #
 ################################################################
@@ -5,6 +8,8 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Any, List, Optional
+import colorama
+from colorama import Fore, Style
 
 from app.calculator import Calculator
 from app.calculator_config import CalculatorConfig
@@ -12,6 +17,9 @@ from app.exceptions import OperationError, ValidationError
 from app.history import AutoSaveObserver, LoggingObserver
 from app.logger import Logger
 from app.operations import OperationFactory
+
+# Initialize colorama for cross-platform color support
+colorama.init(autoreset=True)
 
 
 class Command(ABC):
@@ -21,6 +29,37 @@ class Command(ABC):
     def execute(self) -> Any:
         """Execute the command."""
         pass  # pragma: no cover
+
+
+class CommandDecorator(Command):
+    """Base Decorator for Command objects (Decorator Design Pattern)."""
+
+    def __init__(self, command: Command):
+        self._command = command
+
+    def execute(self) -> Any:
+        return self._command.execute()
+
+
+class DynamicHelpDecorator(CommandDecorator):
+    """
+    Decorator Design Pattern implementation that dynamically enhances the 
+    help menu with available operations from OperationFactory and color formatting.
+    """
+
+    def execute(self) -> str:
+        base_text = self._command.execute()
+        operations = ", ".join(OperationFactory.get_primary_operations())
+        op_line = f"  {operations} - Perform calculations"
+
+        header = f"{Fore.CYAN}\nAvailable commands:{Style.RESET_ALL}"
+        op_entry = f"{Fore.GREEN}{op_line}{Style.RESET_ALL}"
+
+        base_lines = base_text.split("\n")
+        colored_base = [f"{Fore.GREEN}{line}{Style.RESET_ALL}" for line in base_lines if line.strip()]
+
+        return "\n".join([header, op_entry] + colored_base)
+
 
 class CalculateCommand(Command):
     """Command to execute arithmetic calculations with configured precision formatting."""
@@ -40,11 +79,11 @@ class CalculateCommand(Command):
             latest_calc = self.calculator.history[-1]
             raw_formatted = latest_calc.format_result(self.calculator.config.precision)
             formatted_result = f"{Decimal(raw_formatted):f}"
-            return f"\nResult: {formatted_result}"
+            return f"\n{Fore.GREEN}Result: {formatted_result}{Style.RESET_ALL}"
 
         if isinstance(result, Decimal):
             result = f"{result.normalize():f}"
-        return f"\nResult: {result}"
+        return f"\n{Fore.GREEN}Result: {result}{Style.RESET_ALL}"
 
 
 class UndoCommand(Command):
@@ -55,7 +94,7 @@ class UndoCommand(Command):
 
     def execute(self) -> str:
         self.calculator.undo()
-        return "Undo successful."
+        return f"{Fore.GREEN}Undo successful.{Style.RESET_ALL}"
 
 
 class RedoCommand(Command):
@@ -66,7 +105,7 @@ class RedoCommand(Command):
 
     def execute(self) -> str:
         self.calculator.redo()
-        return "Redo successful."
+        return f"{Fore.GREEN}Redo successful.{Style.RESET_ALL}"
 
 
 class HistoryCommand(Command):
@@ -78,8 +117,8 @@ class HistoryCommand(Command):
     def execute(self) -> str:
         history = self.calculator.get_history()
         if not history:
-            return "History is empty."
-        lines = ["\nCalculation History:"]
+            return f"{Fore.YELLOW}History is empty.{Style.RESET_ALL}"
+        lines = [f"{Fore.CYAN}\nCalculation History:{Style.RESET_ALL}"]
         for idx, calc in enumerate(history, 1):
             lines.append(f"  {idx}. {calc}")
         return "\n".join(lines)
@@ -93,7 +132,7 @@ class ClearCommand(Command):
 
     def execute(self) -> str:
         self.calculator.clear_history()
-        return "History cleared."
+        return f"{Fore.GREEN}History cleared.{Style.RESET_ALL}"
 
 
 class SaveCommand(Command):
@@ -105,7 +144,7 @@ class SaveCommand(Command):
 
     def execute(self) -> str:
         self.calculator.save_history(self.file_path)
-        return "History saved successfully."
+        return f"{Fore.GREEN}History saved successfully.{Style.RESET_ALL}"
 
 
 class LoadCommand(Command):
@@ -117,18 +156,14 @@ class LoadCommand(Command):
 
     def execute(self) -> str:
         self.calculator.load_history(self.file_path)
-        return "History loaded successfully."
+        return f"{Fore.GREEN}History loaded successfully.{Style.RESET_ALL}"
 
 
 class HelpCommand(Command):
-    """Command to display available commands."""
+    """Base command returning non-operational CLI instructions."""
 
     def execute(self) -> str:
-        # Fetch only primary operations to prevent overcrowding the help menu
-        operations = ", ".join(OperationFactory.get_primary_operations())
         lines = [
-            "\nAvailable commands:",
-            f"  {operations} - Perform calculations",
             "  history - Display calculation history",
             "  clear - Clear calculation history",
             "  undo - Undo the last calculation",
@@ -161,9 +196,8 @@ def calculator_repl():
         calc.add_observer(AutoSaveObserver(calc))
 
         invoker = CommandInvoker()
-        print("Calculator started. Type 'help' for commands.")
+        print(f"{Fore.CYAN}Calculator started. Type 'help' for commands.{Style.RESET_ALL}")
 
-        # Dynamically fetch valid operations instead of hardcoding them
         calc_commands = OperationFactory.get_available_operations()
 
         while True:
@@ -171,22 +205,23 @@ def calculator_repl():
                 command_str = input("\nEnter command: ").lower().strip()
 
                 if command_str == 'help':
-                    print(invoker.execute_command(HelpCommand()))
+                    help_cmd = DynamicHelpDecorator(HelpCommand())
+                    print(invoker.execute_command(help_cmd))
                     continue
 
                 if command_str == 'exit':
-                    print("Goodbye!")
+                    print(f"{Fore.CYAN}Goodbye!{Style.RESET_ALL}")
                     break
 
                 if command_str in calc_commands:
-                    print("\nEnter numbers (or 'cancel' to abort):")
+                    print(f"{Fore.CYAN}\nEnter numbers (or 'cancel' to abort):{Style.RESET_ALL}")
                     a_input = input("First number: ")
                     if a_input.lower() == 'cancel':
-                        print("Operation cancelled")
+                        print(f"{Fore.YELLOW}Operation cancelled{Style.RESET_ALL}")
                         continue
                     b_input = input("Second number: ")
                     if b_input.lower() == 'cancel':
-                        print("Operation cancelled")
+                        print(f"{Fore.YELLOW}Operation cancelled{Style.RESET_ALL}")
                         continue
 
                     cmd = CalculateCommand(calc, command_str, a_input, b_input)
@@ -217,25 +252,23 @@ def calculator_repl():
                     print(invoker.execute_command(LoadCommand(calc)))
                     continue
 
-                print(f"Unknown command: '{command_str}'. Type 'help' for available commands.")
+                print(f"{Fore.RED}Unknown command: '{command_str}'. Type 'help' for available commands.{Style.RESET_ALL}")
 
             except (ValidationError, OperationError) as e:
                 Logger.error(f"Calculation error: {e}")
-                print(f"Error: {e}")
+                print(f"{Fore.RED}Error: {e}{Style.RESET_ALL}")
             except KeyboardInterrupt:
-                print("\nOperation cancelled")
+                print(f"\n{Fore.YELLOW}Operation cancelled{Style.RESET_ALL}")
                 continue
             except EOFError:
-                print("\nInput terminated. Exiting...")
+                print(f"\n{Fore.CYAN}Input terminated. Exiting...{Style.RESET_ALL}")
                 break
             except Exception as e:
                 Logger.error(f"Unexpected REPL error: {e}")
-                print(f"Error: {e}")
+                print(f"{Fore.RED}Error: {e}{Style.RESET_ALL}")
                 continue
 
     except Exception as e:
         Logger.error(f"Fatal REPL error: {e}")
-        print(f"Fatal error: {e}")
+        print(f"{Fore.RED}Fatal error: {e}{Style.RESET_ALL}")
         raise
-
-
