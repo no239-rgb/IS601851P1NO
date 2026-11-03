@@ -231,3 +231,20 @@ def test_calculator_load_history_respects_max_history_size(mock_read_csv):
     # 5. Assert it kept the tail (the most recent ones), meaning operand1 should be 3, 4, and 5
     assert calc.history[0].operand1 == Decimal('3')
     assert calc.history[-1].operand1 == Decimal('5')
+
+def test_calculator_undo_stack_memory_leak_prevention():
+    """Verify that the undo stack is capped using max_history_size to prevent unbounded memory growth."""
+    from app.calculator_config import CalculatorConfig
+    from app.calculator import Calculator
+    
+    # Setup a config with a strictly small max_history_size for the test
+    config = CalculatorConfig(max_history_size=5)
+    calc = Calculator(config)
+    
+    # Force 10 snapshots to be saved (which exceeds the limit of 5)
+    for _ in range(10):
+        calc.save_undo_snapshot()
+        
+    # Assert that the undo stack did not grow beyond the max_history_size limit
+    assert len(calc._undo_stack) == 5
+
