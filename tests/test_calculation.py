@@ -129,3 +129,20 @@ def test_calculation_avoids_recalculation_if_result_provided(
 
     # Assert the factory was never called, proving double-execution is fixed
     mock_create_operation.assert_not_called()
+
+def test_calculation_relies_on_factory_aliases():
+    """Verify that Calculation correctly resolves aliases directly via the OperationFactory."""
+    # 'int_divide' and 'abs_diff' are registered as keys in OperationFactory._operations
+    calc1 = Calculation(
+        operation="int_divide", 
+        operand1=Decimal("10"), 
+        operand2=Decimal("3")
+    )
+    assert calc1.result == Decimal("3")
+
+    calc2 = Calculation(
+        operation="abs_diff", 
+        operand1=Decimal("5"), 
+        operand2=Decimal("15")
+    )
+    assert calc2.result == Decimal("10")
