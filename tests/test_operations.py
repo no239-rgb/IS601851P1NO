@@ -109,3 +109,13 @@ def test_factory_get_available_operations():
     updated_ops = OperationFactory.get_available_operations()
     
     assert "dynamic_test" in updated_ops
+
+def test_root_preserves_decimal_precision():
+    """Verify Root calculation stays within the Decimal type and maintains precision."""
+    a = Decimal("100")
+    b = Decimal("2")
+    
+    result = Root().execute(a, b)
+
+    assert isinstance(result, Decimal)
+    assert result == Decimal("10")
