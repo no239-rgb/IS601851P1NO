@@ -130,3 +130,14 @@ def test_calculator_config_auto_save_env_false_branch(monkeypatch, false_val):
 
     # Assert that self.auto_save reached the target line and set self.auto_save to False
     assert config.auto_save is False
+
+@pytest.mark.parametrize("bad_input", ["maybe", "2", "yes_please", "random_string", ""])
+def test_calculator_config_auto_save_invalid_env_string_raises_configuration_error(monkeypatch, bad_input):
+    """
+    Verify that invalid CALCULATOR_AUTO_SAVE environment strings raise a ConfigurationError
+    instead of silently coercing to False.
+    """
+    monkeypatch.setenv("CALCULATOR_AUTO_SAVE", bad_input)
+
+    with pytest.raises(ConfigurationError, match="CALCULATOR_AUTO_SAVE must be a boolean value"):
+        CalculatorConfig(auto_save=None)
