@@ -69,6 +69,9 @@ class Calculator:
         limit = self.config.max_history_size
         if len(self._undo_stack) > limit:
             self._undo_stack.pop(0)
+            
+        # BUG FIX: Clear the redo stack to prevent redoing into a dead timeline
+        self._redo_stack.clear()
 
     def perform_operation(
         self,
