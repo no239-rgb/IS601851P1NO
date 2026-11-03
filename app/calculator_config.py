@@ -48,6 +48,9 @@ class CalculatorConfig:
     max_history_size: int
     auto_save: bool
 
+    # ==============================================================================
+# REPLACE CalculatorConfig.__init__ IN app/calculator_config.py:
+# ==============================================================================
     def __init__(
         self,
         base_dir: Optional[Path] = None,
@@ -62,7 +65,7 @@ class CalculatorConfig:
         auto_save: Optional[bool] = None,
     ):
         project_root = get_project_root()
-        self.base_dir = base_dir or Path(
+        self.base_dir = base_dir if base_dir is not None else Path(
             os.getenv('CALCULATOR_BASE_DIR', str(project_root))
         ).resolve()
 
@@ -76,22 +79,27 @@ class CalculatorConfig:
             else Decimal(os.getenv('CALCULATOR_MAX_INPUT_VALUE', '1e999'))
         )
 
-        self.default_encoding = default_encoding or os.getenv(
-            'CALCULATOR_DEFAULT_ENCODING', 'utf-8'
+        self.default_encoding = (
+            default_encoding if default_encoding is not None
+            else os.getenv('CALCULATOR_DEFAULT_ENCODING', 'utf-8')
         )
 
-        raw_log_dir = os.getenv('CALCULATOR_LOG_DIR', str(self.base_dir / "logs"))
-        self.log_dir = log_dir or Path(raw_log_dir).resolve()
+        # Safely construct default log/history paths if base_dir is a Path instance
+        is_path = isinstance(self.base_dir, Path)
+        raw_log_dir = os.getenv('CALCULATOR_LOG_DIR', str(self.base_dir / "logs") if is_path else "logs")
+        self.log_dir = log_dir if log_dir is not None else Path(raw_log_dir).resolve()
 
-        raw_hist_dir = os.getenv('CALCULATOR_HISTORY_DIR', str(self.base_dir / "history"))
-        self.history_dir = history_dir or Path(raw_hist_dir).resolve()
+        raw_hist_dir = os.getenv('CALCULATOR_HISTORY_DIR', str(self.base_dir / "history") if is_path else "history")
+        self.history_dir = history_dir if history_dir is not None else Path(raw_hist_dir).resolve()
 
-        self.history_file_name = history_file_name or os.getenv(
-            'CALCULATOR_HISTORY_FILE', 'history.csv'
+        self.history_file_name = (
+            history_file_name if history_file_name is not None
+            else os.getenv('CALCULATOR_HISTORY_FILE', 'history.csv')
         )
 
-        self.log_file_name = log_file_name or os.getenv(
-            'CALCULATOR_LOG_FILE', 'app.log'
+        self.log_file_name = (
+            log_file_name if log_file_name is not None
+            else os.getenv('CALCULATOR_LOG_FILE', 'app.log')
         )
 
         self.max_history_size = (
@@ -105,6 +113,8 @@ class CalculatorConfig:
             env_auto = os.getenv('CALCULATOR_AUTO_SAVE', 'true').lower()
             self.auto_save = env_auto in ('true', '1', 'yes', 't')
 
+        self.validate()
+
     @property
     def history_file(self) -> Path:
         """Get the full resolved path to the history CSV file."""
@@ -117,14 +127,35 @@ class CalculatorConfig:
 
     def validate(self) -> None:
         """
-        Validate configuration settings.
+        Validate all configuration settings.
 
         Raises:
             ConfigurationError: If any configuration parameter is invalid.
         """
+        # 1. Numeric Bounds
         if self.precision <= 0:
             raise ConfigurationError("precision must be positive")
         if self.max_input_value <= 0:
             raise ConfigurationError("max_input_value must be positive")
         if self.max_history_size <= 0:
             raise ConfigurationError("max_history_size must be positive")
+
+        # 2. String & Encoding Checks
+        if not isinstance(self.default_encoding, str) or not self.default_encoding:
+            raise ConfigurationError("default_encoding must be a non-empty string")
+        try:
+            "test".encode(self.default_encoding)
+        except (LookupError, TypeError) as e:
+            raise ConfigurationError(f"invalid default_encoding: {self.default_encoding}") from e
+
+        # 3. File & Directory Names
+        if not isinstance(self.history_file_name, str) or not self.history_file_name:
+            raise ConfigurationError("history_file_name must be a non-empty string")
+        if not isinstance(self.log_file_name, str) or not self.log_file_name:
+            raise ConfigurationError("log_file_name must be a non-empty string")
+
+        # 4. Paths & Boolean Integrity
+        if not isinstance(self.base_dir, Path):
+            raise ConfigurationError("base_dir must be a valid Path object")
+        if not isinstance(self.auto_save, bool):
+            raise ConfigurationError("auto_save must be a boolean value")
