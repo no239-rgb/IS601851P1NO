@@ -62,13 +62,31 @@ def test_calculator_config_custom_values():
 @pytest.mark.parametrize(
     "invalid_kwargs, error_msg",
     [
+        # Numeric Bounds
         ({"precision": 0}, "precision must be positive"),
+        ({"precision": -5}, "precision must be positive"),
+        ({"max_input_value": 0}, "max_input_value must be positive"),
         ({"max_input_value": -10}, "max_input_value must be positive"),
         ({"max_history_size": 0}, "max_history_size must be positive"),
+        ({"max_history_size": -1}, "max_history_size must be positive"),
+
+        # Encoding Checks
+        ({"default_encoding": ""}, "default_encoding must be a non-empty string"),
+        ({"default_encoding": 123}, "default_encoding must be a non-empty string"),
+        ({"default_encoding": "invalid-codec-123"}, "invalid default_encoding"),
+
+        # File Names
+        ({"history_file_name": ""}, "history_file_name must be a non-empty string"),
+        ({"history_file_name": 123}, "history_file_name must be a non-empty string"),
+        ({"log_file_name": ""}, "log_file_name must be a non-empty string"),
+        ({"log_file_name": 123}, "log_file_name must be a non-empty string"),
+
+        # Paths & Type Integrity
+        ({"base_dir": "not_a_path_object"}, "base_dir must be a valid Path object"),
+        ({"auto_save": "not_a_bool"}, "auto_save must be a boolean value"),
     ],
 )
 def test_calculator_config_validation_failures(invalid_kwargs, error_msg):
-    """Verify validation exceptions for non-positive bounds."""
-    config = CalculatorConfig(**invalid_kwargs)
+    """Verify initialization raises ConfigurationError for invalid settings immediately on creation."""
     with pytest.raises(ConfigurationError, match=error_msg):
-        config.validate()
+        CalculatorConfig(**invalid_kwargs)
