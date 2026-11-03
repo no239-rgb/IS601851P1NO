@@ -102,3 +102,17 @@ class Calculation:
             ).normalize())
         except InvalidOperation:  # pragma: no cover
             return str(self.result)
+
+    def quantize_result(self, precision: int) -> Decimal:
+        """
+        Round the mathematical result to the specified precision 
+        directly on the domain model state.
+        """
+        try:
+            self.result = self.result.quantize(
+                Decimal('0.' + '0' * precision)
+            ).normalize()
+        except InvalidOperation:  # pragma: no cover
+            pass
+            
+        return self.result
