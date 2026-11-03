@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 import pytest
+from decimal import Decimal
 from app.calculator import Calculator
+from app.calculator_config import CalculatorConfig
 from app.calculator_repl import (
     CalculateCommand,
     ClearCommand,
@@ -229,3 +231,27 @@ def test_calculator_repl_cancel_second_number_prompt(monkeypatch, capsys):
 
     assert "Operation cancelled" in captured
     assert "Goodbye!" in captured
+
+def test_repl_calculate_command_applies_configured_precision():
+    """Verify CalculateCommand formats calculation output using CalculatorConfig.precision."""
+    config = CalculatorConfig(precision=2)
+    calc = Calculator(config)
+    invoker = CommandInvoker()
+
+    # 10 / 3 = 3.3333333333... -> with precision=2, format_result should yield "3.33"
+    cmd = CalculateCommand(calc, "divide", "10", "3")
+    result = invoker.execute_command(cmd)
+
+    assert "Result: 3.33" in result
+
+def test_repl_calculate_command_mocked_decimal_result():
+    """
+    Verify CalculateCommand fallback formatting when perform_operation returns a Decimal 
+    and history is not populated.
+    """
+    calc = Calculator()
+    invoker = CommandInvoker()
+
+    with patch.object(calc, "perform_operation", return_value=Decimal("15.00")):
+        cmd = CalculateCommand(calc, "add", "10", "5")
+        assert "Result: 15" in invoker.execute_command(cmd)
