@@ -5,10 +5,12 @@ on:
     branches:
       - main  # Run tests on any push to the main branch
       - revision  # Run tests on any push to the revision branch
+      - revision2  # Run tests on any push to the revision2 branch
   pull_request:
     branches:
       - main  # Run tests on any pull request to the main branch
       - revision  # Run tests on any pull request to the revision branch
+      - revision2  # Run tests on any pull request to the revision2 branch
 
 jobs:
   test:
