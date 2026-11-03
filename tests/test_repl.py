@@ -130,13 +130,13 @@ def test_calculator_repl_cancel_second_operand(monkeypatch, capsys):
 
     assert "Operation cancelled" in captured
 
-def test_calculator_repl_catches_operation_and_generic_errors(monkeypatch, capsys):
+@patch("app.calculator_repl.Logger.error")
+def test_calculator_repl_catches_operation_and_generic_errors(mock_logger_error, monkeypatch, capsys):
     """
-    Verify REPL catches OperationError and unexpected Exception inside loop.
+    Verify REPL catches OperationError and logs it to Logger.error.
     """
-
     inputs = iter([
-        "add", "10", "0",  # Will cause division error if divide, or we mock
+        "add", "10", "0",
         "exit"
     ])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
@@ -146,12 +146,14 @@ def test_calculator_repl_catches_operation_and_generic_errors(monkeypatch, capsy
 
     captured = capsys.readouterr().out
     assert "Error: Division by zero" in captured
+    mock_logger_error.assert_called_with("Calculation error: Division by zero")
 
-def test_calculator_repl_catches_generic_loop_exception(monkeypatch, capsys):
-    """
-    Verify REPL catches unexpected generic exceptions inside loop.
-    """
 
+@patch("app.calculator_repl.Logger.error")
+def test_calculator_repl_catches_generic_loop_exception(mock_logger_error, monkeypatch, capsys):
+    """
+    Verify REPL catches unexpected generic exceptions inside loop and logs to Logger.error.
+    """
     inputs = iter(["undo", "exit"])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
@@ -160,6 +162,8 @@ def test_calculator_repl_catches_generic_loop_exception(monkeypatch, capsys):
 
     captured = capsys.readouterr().out
     assert "Error: System crash" in captured
+    mock_logger_error.assert_called_with("Unexpected REPL error: System crash")
+
 
 def test_calculator_repl_interrupt_and_eof(monkeypatch, capsys):
     """
@@ -186,14 +190,17 @@ def test_calculator_repl_interrupt_and_eof(monkeypatch, capsys):
     captured = capsys.readouterr().out
     assert "Input terminated. Exiting..." in captured
 
-def test_calculator_repl_fatal_initialization_error():
+@patch("app.calculator_repl.Logger.error")
+def test_calculator_repl_fatal_initialization_error(mock_logger_error):
     """
-    Verify fatal startup exception during calculator REPL setup is re-raised.
+    Verify fatal startup exception during calculator REPL setup is logged and re-raised.
     """
-
     with patch("app.calculator_repl.Calculator", side_effect=RuntimeError("Fatal init failed")):
         with pytest.raises(RuntimeError, match="Fatal init failed"):
             calculator_repl()
+            
+    mock_logger_error.assert_called_with("Fatal REPL error: Fatal init failed")
+
 
 def test_calculator_repl_cancel_first_number_prompt(monkeypatch, capsys):
     """
