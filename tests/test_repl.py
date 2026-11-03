@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+from colorama import Fore
 import pytest
 from decimal import Decimal
 from app.calculator import Calculator
@@ -6,7 +7,9 @@ from app.calculator_config import CalculatorConfig
 from app.calculator_repl import (
     CalculateCommand,
     ClearCommand,
+    CommandDecorator,
     CommandInvoker,
+    DynamicHelpDecorator, 
     HelpCommand,
     HistoryCommand,
     LoadCommand,
@@ -22,7 +25,6 @@ def test_repl_commands_execution():
     """
     Verify individual Command objects function correctly with Invoker.
     """
-    
     calc = Calculator()
     invoker = CommandInvoker()
 
@@ -46,8 +48,8 @@ def test_repl_commands_execution():
     clear_cmd = ClearCommand(calc)
     assert "History cleared" in invoker.execute_command(clear_cmd)
 
-    # Help Command
-    help_cmd = HelpCommand()
+    # Help Command (Decorated)
+    help_cmd = DynamicHelpDecorator(HelpCommand())
     assert "Available commands" in invoker.execute_command(help_cmd)
 
 def test_repl_calculate_command_non_decimal_result():
@@ -66,10 +68,9 @@ def test_repl_empty_history_command():
     """
     Verify HistoryCommand output when history is empty.
     """
-
     calc = Calculator()
     invoker = CommandInvoker()
-    assert invoker.execute_command(HistoryCommand(calc)) == "History is empty."
+    assert "History is empty." in invoker.execute_command(HistoryCommand(calc))
 
 def test_repl_save_and_load_commands(tmp_path):
     """
@@ -255,3 +256,40 @@ def test_repl_calculate_command_mocked_decimal_result():
     with patch.object(calc, "perform_operation", return_value=Decimal("15.00")):
         cmd = CalculateCommand(calc, "add", "10", "5")
         assert "Result: 15" in invoker.execute_command(cmd)
+
+def test_dynamic_help_decorator_pattern():
+    """Verify DynamicHelpDecorator correctly wraps HelpCommand using Decorator Design Pattern."""
+    base_help = HelpCommand()
+    decorated_help = DynamicHelpDecorator(base_help)
+
+    invoker = CommandInvoker()
+    output = invoker.execute_command(decorated_help)
+
+    assert "Available commands:" in output
+    assert "Perform calculations" in output
+    assert "history - Display calculation history" in output
+    assert Fore.CYAN in output or Fore.GREEN in output  # Verify colorama integration
+
+
+def test_dynamic_help_decorator_reflects_registered_operations():
+    """Verify dynamic help updates automatically when a new operation is registered in OperationFactory."""
+    from app.operations import OperationFactory, Addition
+
+    class CustomModOperation(Addition):
+        pass
+
+    OperationFactory.register_operation("custom_test_op", CustomModOperation)
+
+    decorated_help = DynamicHelpDecorator(HelpCommand())
+    invoker = CommandInvoker()
+    output = invoker.execute_command(decorated_help)
+
+    assert "custom_test_op" in output
+
+def test_base_command_decorator_execute():
+    """Verify base CommandDecorator delegates execute() to wrapped command."""
+    base_cmd = HelpCommand()
+    decorator = CommandDecorator(base_cmd)
+
+    # Asserts that CommandDecorator.execute() delegates directly to base_cmd.execute()
+    assert decorator.execute() == base_cmd.execute()
